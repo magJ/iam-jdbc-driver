@@ -111,6 +111,7 @@ tasks.javadoc {
 tasks.shadowJar {
     listOf(
             "com.amazonaws",
+            "software.amazon",
             "com.fasterxml",
             "org.apache.commons",
             "org.apache.http",
