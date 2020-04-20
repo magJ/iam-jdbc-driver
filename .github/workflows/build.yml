@@ -1,4 +1,4 @@
-name: Java build and snapshot publish
+name: Java build
 
 on:
   push:
