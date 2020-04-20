@@ -32,6 +32,8 @@ spotless {
         ktlint()
     }
 }
+val mavenUploadUser: String? by project
+val mavenUploadPassword: String? by project
 
 publishing {
     publications {
@@ -43,8 +45,8 @@ publishing {
                 url.set("https://github.com/magJ/iam-jdbc-driver")
                 licenses {
                     license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
                     }
                 }
                 developers {
@@ -65,6 +67,10 @@ publishing {
             val releasesRepoUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2")
             val snapshotsRepoUrl = uri("https://oss.sonatype.org/content/repositories/snapshots")
             url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
+            credentials {
+                username = mavenUploadUser
+                password = mavenUploadPassword
+            }
         }
     }
 }

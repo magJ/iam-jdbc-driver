@@ -18,4 +18,4 @@ jobs:
       with:
         java-version: 1.8
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew -PmavenUploadUser=${{ secrets.SONATYPE_USER }} -PmavenUploadPassword=${{ secrets.SONATYPE_PASSWORD }} -PsigningKey="${{ secrets.pgp_signing_key }}" -PsigningPassword="${{ secrets.pgp_signing_key_passphrase }}" build publish
