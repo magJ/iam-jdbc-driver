@@ -4,6 +4,8 @@ plugins {
     signing
     id("com.diffplug.gradle.spotless") version "3.27.1"
     id("com.github.johnrengelman.shadow") version "5.2.0"
+    id("de.marcphilipp.nexus-publish") version "0.4.0"
+    id("io.codearte.nexus-staging") version "0.21.2"
 }
 
 repositories {
@@ -44,8 +46,6 @@ spotless {
         ktlint()
     }
 }
-val mavenUploadUser: String? by project
-val mavenUploadPassword: String? by project
 
 publishing {
     publications {
@@ -77,17 +77,19 @@ publishing {
             }
         }
     }
+}
+
+nexusPublishing {
     repositories {
-        maven {
-            val releasesRepoUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2")
-            val snapshotsRepoUrl = uri("https://oss.sonatype.org/content/repositories/snapshots")
-            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
-            credentials {
-                username = mavenUploadUser
-                password = mavenUploadPassword
-            }
-        }
+        sonatype()
     }
+}
+
+val mavenUploadUser: String? by project
+val mavenUploadPassword: String? by project
+nexusStaging {
+    username = mavenUploadUser
+    password = mavenUploadPassword
 }
 
 signing {
