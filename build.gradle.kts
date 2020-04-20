@@ -47,7 +47,6 @@ spotless {
 val mavenUploadUser: String? by project
 val mavenUploadPassword: String? by project
 
-
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
