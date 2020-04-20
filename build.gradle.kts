@@ -17,6 +17,16 @@ dependencies {
 
 group = "io.magj"
 
+
+val release: Boolean? by project
+val baseVersion = "0.1.0"
+
+version = if (release != null && release == true) {
+    baseVersion
+} else {
+    "$baseVersion-SNAPSHOT"
+}
+
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
