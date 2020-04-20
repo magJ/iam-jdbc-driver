@@ -118,7 +118,7 @@ tasks.shadowJar {
             "org.joda",
             "com.fasterxml"
     ).forEach {
-        relocate(it, "repackaged.$it")
+        relocate(it, "io.magj.iamjdbcdriver.repackaged.$it")
     }
 }
 
