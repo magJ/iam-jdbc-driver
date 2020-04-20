@@ -1,0 +1,3 @@
+io.magj.iamjdbcdriver.IamAuthJdbcDriverWrapper
+io.magj.iamjdbcdriver.MySqlIamAuthJdbcDriverWrapper
+io.magj.iamjdbcdriver.PostgreSqlIamAuthJdbcDriverWrapper
