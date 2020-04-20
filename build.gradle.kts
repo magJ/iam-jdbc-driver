@@ -17,10 +17,10 @@ dependencies {
 
 group = "io.magj"
 
-val release: Boolean? by project
+val release: String? by project
 val baseVersion = "0.1.0"
 
-version = if (release != null && release == true) {
+version = if (release != null && release!!.toBoolean()) {
     baseVersion
 } else {
     "$baseVersion-SNAPSHOT"
