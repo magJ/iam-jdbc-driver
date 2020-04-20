@@ -11,6 +11,8 @@ import com.amazonaws.regions.AwsProfileRegionProvider;
 import com.amazonaws.regions.DefaultAwsRegionProviderChain;
 import com.amazonaws.services.rds.auth.GetIamAuthTokenRequest;
 import com.amazonaws.services.rds.auth.RdsIamAuthTokenGenerator;
+
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -169,9 +171,13 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         String[] pairs = query.split("&");
         for (String pair : pairs) {
             int idx = pair.indexOf("=");
-            queryParams.put(
-                    URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8),
-                    URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8));
+            try {
+                queryParams.put(
+                        URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8.name()),
+                        URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8.name()));
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
         }
         return queryParams;
     }
