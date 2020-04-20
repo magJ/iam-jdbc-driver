@@ -17,7 +17,6 @@ dependencies {
 
 group = "io.magj"
 
-
 val release: Boolean? by project
 val baseVersion = "0.1.0"
 
