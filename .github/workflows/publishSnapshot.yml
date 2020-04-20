@@ -13,4 +13,4 @@ jobs:
       with:
         java-version: 1.8
     - name: Publish snapshot
-      run: ./gradlew -PmavenUploadUser="${{ secrets.SONATYPE_USER }}" -PmavenUploadPassword="${{ secrets.SONATYPE_PASSWORD }}" -PsigningKey="${{ secrets.pgp_signing_key }}" -PsigningPassword="${{ secrets.pgp_signing_key_passphrase }}" -Prelease=false build publish
+      run: ./gradlew -PmavenUploadUser="${{ secrets.SONATYPE_USER }}" -PmavenUploadPassword="${{ secrets.SONATYPE_PASSWORD }}" -PsigningKeyId="${{ secrets.pgp_signing_key_id }}" -PsigningKey="${{ secrets.pgp_signing_key }}" -PsigningPassword="${{ secrets.pgp_signing_key_passphrase }}" -Prelease=false build publish
