@@ -3,6 +3,7 @@ plugins {
     `maven-publish`
     signing
     id("com.diffplug.gradle.spotless") version "3.27.1"
+    id("com.github.johnrengelman.shadow") version "5.2.0"
 }
 
 repositories {
@@ -46,10 +47,14 @@ spotless {
 val mavenUploadUser: String? by project
 val mavenUploadPassword: String? by project
 
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
+            artifact(tasks.shadowJar.get()) {
+                classifier = "all"
+            }
             pom {
                 name.set(project.name)
                 description.set("A generic JDBC driver wrapper connecting using IAM RDS token authentication")
@@ -99,4 +104,21 @@ tasks.javadoc {
     if (JavaVersion.current().isJava9Compatible) {
         (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
     }
+}
+
+tasks.shadowJar {
+    listOf(
+            "com.amazonaws",
+            "com.fasterxml",
+            "org.apache.commons",
+            "org.apache.http",
+            "org.joda",
+            "com.fasterxml"
+    ).forEach {
+        relocate(it, "repackaged.$it")
+    }
+}
+
+tasks.assemble {
+    dependsOn(tasks.shadowJar)
 }
