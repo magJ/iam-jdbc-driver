@@ -1,5 +1,4 @@
 name: Java build
-
 on:
   push:
     branches: [ master ]

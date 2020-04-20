@@ -1,5 +1,4 @@
 name: Publish Snapshot
-
 on:
   push:
     branches: [ master ]
