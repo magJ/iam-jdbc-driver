@@ -1,4 +1,6 @@
 # iam-jdbc-driver
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.magj/iam-jdbc-driver/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.magj/iam-jdbc-driver)  
+
 A generic JDBC driver wrapper for authenticating using RDS IAM auth.
 
 Preconfigured driver classes are provided for MySQL and PostgreSQL,  
@@ -7,17 +9,41 @@ however you could use this library to wrap any JDBC driver for use with IAM auth
 ## Usage
 1. Add the library to your application classpath  
     Two versions of the library are provided in maven central:
-    - A regular version with transitive dependencies resolved via normal means.
-    - A shaded version with the transitive dependencies bundled into the one jar file.  
+    - A regular version with transitive dependencies resolved via normal means.  
+      ```kotlin
+      implementation("io.magj:iam-jdbc-driver:$version")
+      ```
+    - A shaded version with the transitive dependencies bundled into the one jar file under a different namespace.  
+      ```kotlin
+      implementation("io.magj:iam-jdbc-driver:$version:all@jar")
+      ```
     
     The latter may be more suitable for integrating with applications with which you do not have direct control over the source code/build process.
 
-2. Ensure you also have the delegate driver loaded onto your classpath.  
-   This library does not bundle any driver implementations.  
-   You will need ensure that the desired MySql/Postgres/etc delegate driver class is loadable.
+2.  Ensure you also have the delegate driver loaded onto your classpath.  
+    This library does not bundle any driver implementations.  
+    You will need ensure that the desired MySql/Postgres/etc delegate driver class is loadable.
    
-3. Configure the JDBC connection settings:  
-   Depending on your application, configuration may be as simple as changing the scheme in the JDBC url.  
+3.  Configure the JDBC connection settings:  
+    Many applications resolve driver classes via `java.sql.DriverManager#getDriver(String url)`, if this is the case for your application
+    configuration may be as simple as just changing the scheme in the JDBC url.  
+    ```
+    # Mysql
+    from: jdbc:mysql://host1:33060/exampledb
+    to:   jdbc:iammysql://host1:33060/exampledb
+   
+    # Postgres
+    from: jdbc:postgresql://host1:54321/exampledb
+    to:   jdbc:iampostgresql://host1:54321/exampledb
+    ```
+    
+    Alternatively if your application explicitly configures the JDBC driver class, you can provide
+    `io.magj.iamjdbcdriver.MySqlIamAuthJdbcDriverWrapper`  or   
+    `io.magj.iamjdbcdriver.PostgreSqlIamAuthJdbcDriverWrapper`  
+    If the driver class is explicitly configured, you don't have to change the jdbc url scheme.
+    
+    If you want to wrap a driver other that the default mysql or postgres drivers, see the source code of 
+    `io.magj.iamjdbcdriver.IamAuthJdbcDriverWrapper` for more information
    
 
 
