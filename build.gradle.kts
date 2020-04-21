@@ -92,6 +92,10 @@ nexusStaging {
     password = mavenUploadPassword
 }
 
+tasks.closeRepository.configure {
+    mustRunAfter(tasks.publish)
+}
+
 signing {
     val signingKeyId: String? by project
     val signingKey: String? by project
