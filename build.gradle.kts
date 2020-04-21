@@ -90,6 +90,9 @@ val mavenUploadPassword: String? by project
 nexusStaging {
     username = mavenUploadUser
     password = mavenUploadPassword
+    // Try for 2 minutes
+    numberOfRetries = 30
+    delayBetweenRetriesInMillis = 4000
 }
 
 tasks.closeRepository.configure {
