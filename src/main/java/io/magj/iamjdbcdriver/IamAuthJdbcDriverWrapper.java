@@ -22,14 +22,18 @@ import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 public class IamAuthJdbcDriverWrapper implements Driver {
+
+    private static final Logger LOGGER = Logger.getLogger(IamAuthJdbcDriverWrapper.class.getName());
 
     /**
      * The JDBC driver class to delegate calls to, if not already configured.
@@ -145,8 +149,20 @@ public class IamAuthJdbcDriverWrapper implements Driver {
 
     protected static void initialiseDriverRegistration(IamAuthJdbcDriverWrapper driver) {
         try {
+            LOGGER.fine(
+                    () ->
+                            "Registering IAM driver wrapper with properties: "
+                                    + " wrapperSchemeName="
+                                    + driver.wrapperSchemeName
+                                    + ", delegateSchemeName="
+                                    + driver.delegateSchemeName
+                                    + ", defaultPort="
+                                    + driver.defaultPort
+                                    + ", driverClassName="
+                                    + driver.driverClassName);
             DriverManager.registerDriver(driver);
         } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error registering IAM driver wrapper", e);
             throw new ExceptionInInitializerError(e);
         }
     }
@@ -165,6 +181,9 @@ public class IamAuthJdbcDriverWrapper implements Driver {
     }
 
     public static Map<String, String> parseQueryString(URI uri) {
+        if (uri == null || uri.getQuery() == null) {
+            return Collections.emptyMap();
+        }
         Map<String, String> queryParams = new LinkedHashMap<>();
         String query = uri.getQuery();
         String[] pairs = query.split("&");
@@ -231,19 +250,26 @@ public class IamAuthJdbcDriverWrapper implements Driver {
     public Connection connect(String url, Properties properties) throws SQLException {
         URI parsed = parseJdbcUrl(url);
         if (parsed == null) {
-            throw new SQLException("IAM auth wrapper cannot parse URL: " + url);
+            LOGGER.warning(() -> "IAM auth wrapper cannot parse URL: " + url);
+            return null;
         }
 
-        String host = host(parsed);
-        int port = port(parsed);
         Map<String, String> uriProperties = parseQueryString(parsed);
-
         resolveDelegateDriver(properties, uriProperties);
         resolveDelegateSchemeName(properties, uriProperties);
 
-        String rdsIamAuthToken = generateRdsIamAuthToken(host, port, properties, uriProperties);
+        try {
+            String host = host(parsed);
+            int port = port(parsed);
+            String rdsIamAuthToken = generateRdsIamAuthToken(host, port, properties, uriProperties);
 
-        properties.setProperty(passwordProperty, rdsIamAuthToken);
+            properties.setProperty(passwordProperty, rdsIamAuthToken);
+        } catch (Exception e) {
+            LOGGER.log(
+                    Level.WARNING,
+                    "RDS IAM auth token generation failed, attempting to call delegate driver without IAM token",
+                    e);
+        }
 
         final String connectUrl = isWrapperScheme(parsed) ? replaceScheme(url) : url;
 
@@ -261,7 +287,8 @@ public class IamAuthJdbcDriverWrapper implements Driver {
     }
 
     private void resolveDelegateDriver(
-            Properties connectionProperties, Map<String, String> uriProperties) {
+            Properties connectionProperties, Map<String, String> uriProperties)
+            throws SQLException {
         if (delegate != null) {
             return;
         }
@@ -271,12 +298,12 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         String driverToResolve =
                 driverClassNameProperty != null ? driverClassNameProperty : driverClassName;
         if (driverToResolve == null) {
-            throw new IllegalStateException("No delegate JDBC driver configured");
+            throw new SQLException("No delegate JDBC driver configured");
         }
         try {
             delegate = resolveDriver(driverToResolve);
         } catch (Exception e) {
-            throw new RuntimeException("Unable to load delegate JDBC driver", e);
+            throw new SQLException("Unable to load delegate JDBC driver", e);
         }
     }
 
@@ -296,7 +323,7 @@ public class IamAuthJdbcDriverWrapper implements Driver {
             return defaultPort;
         } else {
             throw new SQLException(
-                    "No database port specified. IAM Auth requires that a port be specified in the JDBC URL.");
+                    "No database port specified. IAM Auth requires that either a default port be pre-configured or a port is specified in the JDBC URL.");
         }
     }
 
@@ -319,6 +346,13 @@ public class IamAuthJdbcDriverWrapper implements Driver {
                         .region(region)
                         .build();
 
+        LOGGER.fine(
+                "Generating RDS IAM auth token for: Host="
+                        + host
+                        + ", Port="
+                        + port
+                        + ", Username="
+                        + usernameProperty);
         return generator.getAuthToken(new GetIamAuthTokenRequest(host, port, usernameProperty));
     }
 
@@ -381,6 +415,12 @@ public class IamAuthJdbcDriverWrapper implements Driver {
                             .withLongLivedCredentialsProvider(baseCredentialProvider)
                             .withExternalId(externalId)
                             .withRoleSessionName(roleSessionName);
+            LOGGER.fine(
+                    () ->
+                            "Assuming role with ARN: "
+                                    + assumedRole
+                                    + ", and Session Name: "
+                                    + roleSessionName);
             return new STSProfileCredentialsServiceProvider(roleInfo);
         } else {
             return baseCredentialProvider;
