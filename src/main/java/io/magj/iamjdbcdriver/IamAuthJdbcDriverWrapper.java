@@ -105,6 +105,7 @@ public class IamAuthJdbcDriverWrapper implements Driver {
     private final String userProperty;
     private final Integer defaultPort;
     private final String driverClassName;
+    private final boolean acceptDelegateUrls;
 
     private Driver delegate;
     private String delegateSchemeName;
@@ -116,21 +117,23 @@ public class IamAuthJdbcDriverWrapper implements Driver {
      * #DELEGATE_DRIVER_CLASS_PROPERTY}
      */
     public IamAuthJdbcDriverWrapper() {
-        this(null, null, null, null);
+        this(null, null, null, null, true);
     }
 
     public IamAuthJdbcDriverWrapper(
             String wrapperSchemeName,
             String delegateSchemeName,
             Integer defaultPort,
-            String driverClassName) {
+            String driverClassName,
+            boolean acceptDelegateUrls) {
         this(
                 wrapperSchemeName,
                 delegateSchemeName,
                 DEFAULT_PASSWORD_PROPERTY,
                 DEFAULT_USER_PROPERTY,
                 defaultPort,
-                driverClassName);
+                driverClassName,
+                acceptDelegateUrls);
     }
 
     public IamAuthJdbcDriverWrapper(
@@ -139,13 +142,15 @@ public class IamAuthJdbcDriverWrapper implements Driver {
             String passwordProperty,
             String userProperty,
             Integer defaultPort,
-            String driverClassName) {
+            String driverClassName,
+            boolean acceptDelegateUrls) {
         this.wrapperSchemeName = wrapperSchemeName;
         this.delegateSchemeName = delegateSchemeName;
         this.passwordProperty = passwordProperty;
         this.userProperty = userProperty;
         this.defaultPort = defaultPort;
         this.driverClassName = driverClassName;
+        this.acceptDelegateUrls = acceptDelegateUrls;
     }
 
     protected static void initialiseDriverRegistration(IamAuthJdbcDriverWrapper driver) {
@@ -214,16 +219,8 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         URI parsed = parseJdbcUrl(url);
         attemptResolveDelegateDriverDetails(parsed);
         if (isWrapperScheme(parsed)) {
-            boolean isWrapperScheme = false;
-            boolean isDelegateScheme = false;
-            if (wrapperSchemeName != null) {
-                isWrapperScheme = wrapperSchemeName.equals(parsed.getScheme());
-            }
-            if (delegateSchemeName != null) {
-                isDelegateScheme = delegateSchemeName.equals(parsed.getScheme());
-            }
-            return isWrapperScheme || isDelegateScheme;
-        } else if (delegate != null) {
+            return true;
+        } else if (delegate != null && acceptDelegateUrls) {
             return delegate.acceptsURL(url);
         } else {
             return false;
@@ -303,7 +300,7 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         try {
             resolveDelegateDriver(properties);
         } catch (SQLException e) {
-            LOGGER.log(Level.INFO, "Attempt to resolve delegate driver failed", e);
+            LOGGER.log(Level.FINE, "Attempt to resolve delegate driver failed", e);
         }
     }
 

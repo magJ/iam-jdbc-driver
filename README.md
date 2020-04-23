@@ -40,10 +40,10 @@ however you could use this library to wrap any JDBC driver for use with IAM auth
     Alternatively if your application explicitly configures the JDBC driver class, you can provide
     `io.magj.iamjdbcdriver.MySqlIamAuthJdbcDriverWrapper`  or   
     `io.magj.iamjdbcdriver.PostgreSqlIamAuthJdbcDriverWrapper`  
-    If the driver class is explicitly configured, you don't have to change the jdbc url scheme.
     
-    If you want to wrap a driver other that the default mysql or postgres drivers, see the source code of 
-    `io.magj.iamjdbcdriver.IamAuthJdbcDriverWrapper` for more information
+    If you want to wrap a driver other than the default mysql or postgres drivers, see the 
+    properties `delegateJdbcDriverClass`, `delegateJdbcDriverSchemeName` and the
+    source code of  `io.magj.iamjdbcdriver.IamAuthJdbcDriverWrapper` for more information
    
 
 

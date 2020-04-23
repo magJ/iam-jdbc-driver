@@ -8,10 +8,19 @@ public class PostgreSqlIamAuthJdbcDriverWrapper extends IamAuthJdbcDriverWrapper
     public static final String DELEGATE_DRIVER_CLASS_NAME = "org.postgresql.Driver";
 
     static {
-        initialiseDriverRegistration(new PostgreSqlIamAuthJdbcDriverWrapper());
+        initialiseDriverRegistration(new PostgreSqlIamAuthJdbcDriverWrapper(false));
     }
 
     public PostgreSqlIamAuthJdbcDriverWrapper() {
-        super(SCHEME_NAME, DELEGATE_SCHEME_NAME, DEFAULT_PORT, DELEGATE_DRIVER_CLASS_NAME);
+        this(true);
+    }
+
+    public PostgreSqlIamAuthJdbcDriverWrapper(boolean acceptDelegateUrls) {
+        super(
+                SCHEME_NAME,
+                DELEGATE_SCHEME_NAME,
+                DEFAULT_PORT,
+                DELEGATE_DRIVER_CLASS_NAME,
+                acceptDelegateUrls);
     }
 }
