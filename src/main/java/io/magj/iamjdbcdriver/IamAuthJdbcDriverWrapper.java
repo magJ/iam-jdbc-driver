@@ -264,12 +264,10 @@ public class IamAuthJdbcDriverWrapper implements Driver {
 
     @Override
     public Connection connect(String url, Properties connectionProperties) throws SQLException {
-        assertUrlNotNull(url);
-        URI parsed = parseJdbcUrl(url);
-        if (parsed == null) {
-            LOGGER.warning(() -> "IAM auth wrapper cannot parse URL: " + url);
+        if (!acceptsURL(url)) {
             return null;
         }
+        URI parsed = parseJdbcUrl(url);
 
         Map<String, String> properties =
                 mergeProperties(connectionProperties, parseQueryString(parsed));
