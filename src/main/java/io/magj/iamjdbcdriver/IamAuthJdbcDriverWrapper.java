@@ -169,7 +169,7 @@ public class IamAuthJdbcDriverWrapper implements Driver {
     }
 
     private static Map<String, String> mergeProperties(
-        Properties properties, Map<String, String> uriProperties) {
+            Properties properties, Map<String, String> uriProperties) {
         Map<String, String> merged = new HashMap<>();
         properties.stringPropertyNames().forEach(sp -> merged.put(sp, properties.getProperty(sp)));
         // URI properties take precedence over connection properties.
