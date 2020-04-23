@@ -23,6 +23,7 @@ import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -167,17 +168,16 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         }
     }
 
-    private static String getProperty(
-            String propertyName,
-            Properties connectionProperties,
-            Map<String, String> uriProperties) {
+    private static Map<String, String> mergeProperties(
+        Properties properties, Map<String, String> uriProperties) {
+        Map<String, String> merged = new HashMap<>();
+        properties.stringPropertyNames().forEach(sp -> merged.put(sp, properties.getProperty(sp)));
         // URI properties take precedence over connection properties.
         // This is in-line with the behavior of JDBC drivers like postgres
-        String property = uriProperties.get(propertyName);
-        if (property == null) {
-            property = connectionProperties.getProperty(propertyName);
-        }
-        return property;
+        // It also makes sense, since we use URI properties are used in certain situations to
+        // resolve the driver, before connection properties are available
+        merged.putAll(uriProperties);
+        return merged;
     }
 
     public static Map<String, String> parseQueryString(URI uri) {
@@ -210,7 +210,9 @@ public class IamAuthJdbcDriverWrapper implements Driver {
 
     @Override
     public boolean acceptsURL(String url) throws SQLException {
+        assertUrlNotNull(url);
         URI parsed = parseJdbcUrl(url);
+        attemptResolveDelegateDriverDetails(parsed);
         if (isWrapperScheme(parsed)) {
             boolean isWrapperScheme = false;
             boolean isDelegateScheme = false;
@@ -224,7 +226,15 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         } else if (delegate != null) {
             return delegate.acceptsURL(url);
         } else {
-            return true;
+            return false;
+        }
+    }
+
+    private void attemptResolveDelegateDriverDetails(URI uri) {
+        if (uri != null) {
+            Map<String, String> uriProperties = parseQueryString(uri);
+            attemptDelegateDriverResolve(uriProperties);
+            resolveDelegateSchemeName(uriProperties);
         }
     }
 
@@ -238,6 +248,12 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         return url.replaceFirst(Pattern.quote(wrapperSchemeName), delegateSchemeName);
     }
 
+    private void assertUrlNotNull(String url) throws SQLException {
+        if (url == null) {
+            throw new SQLException(new NullPointerException());
+        }
+    }
+
     private URI parseJdbcUrl(String url) {
         if (url == null || !url.startsWith(JDBC_URL_PREFIX)) {
             return null;
@@ -247,23 +263,25 @@ public class IamAuthJdbcDriverWrapper implements Driver {
     }
 
     @Override
-    public Connection connect(String url, Properties properties) throws SQLException {
+    public Connection connect(String url, Properties connectionProperties) throws SQLException {
+        assertUrlNotNull(url);
         URI parsed = parseJdbcUrl(url);
         if (parsed == null) {
             LOGGER.warning(() -> "IAM auth wrapper cannot parse URL: " + url);
             return null;
         }
 
-        Map<String, String> uriProperties = parseQueryString(parsed);
-        resolveDelegateDriver(properties, uriProperties);
-        resolveDelegateSchemeName(properties, uriProperties);
+        Map<String, String> properties =
+                mergeProperties(connectionProperties, parseQueryString(parsed));
+        resolveDelegateDriver(properties);
+        resolveDelegateSchemeName(properties);
 
         try {
             String host = host(parsed);
             int port = port(parsed);
-            String rdsIamAuthToken = generateRdsIamAuthToken(host, port, properties, uriProperties);
+            String rdsIamAuthToken = generateRdsIamAuthToken(host, port, properties);
 
-            properties.setProperty(passwordProperty, rdsIamAuthToken);
+            connectionProperties.setProperty(passwordProperty, rdsIamAuthToken);
         } catch (Exception e) {
             LOGGER.log(
                     Level.WARNING,
@@ -273,30 +291,31 @@ public class IamAuthJdbcDriverWrapper implements Driver {
 
         final String connectUrl = isWrapperScheme(parsed) ? replaceScheme(url) : url;
 
-        return delegate.connect(connectUrl, properties);
+        return delegate.connect(connectUrl, connectionProperties);
     }
 
-    private void resolveDelegateSchemeName(
-            Properties connectionProperties, Map<String, String> uriProperties) {
+    private void resolveDelegateSchemeName(Map<String, String> properties) {
         if (delegateSchemeName != null) {
             return;
         }
-        delegateSchemeName =
-                getProperty(
-                        DELEGATE_DRIVER_SCHEME_NAME_PROPERTY, connectionProperties, uriProperties);
+        delegateSchemeName = properties.get(DELEGATE_DRIVER_SCHEME_NAME_PROPERTY);
     }
 
-    private void resolveDelegateDriver(
-            Properties connectionProperties, Map<String, String> uriProperties)
-            throws SQLException {
+    private void attemptDelegateDriverResolve(Map<String, String> properties) {
+        try {
+            resolveDelegateDriver(properties);
+        } catch (SQLException e) {
+            LOGGER.log(Level.INFO, "Attempt to resolve delegate driver failed", e);
+        }
+    }
+
+    private void resolveDelegateDriver(Map<String, String> properties) throws SQLException {
         if (delegate != null) {
             return;
         }
 
-        String driverClassNameProperty =
-                getProperty(DELEGATE_DRIVER_CLASS_PROPERTY, connectionProperties, uriProperties);
         String driverToResolve =
-                driverClassNameProperty != null ? driverClassNameProperty : driverClassName;
+                properties.getOrDefault(DELEGATE_DRIVER_CLASS_PROPERTY, driverClassName);
         if (driverToResolve == null) {
             throw new SQLException("No delegate JDBC driver configured");
         }
@@ -327,22 +346,17 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         }
     }
 
-    public String generateRdsIamAuthToken(
-            String host,
-            int port,
-            Properties connectionProperties,
-            Map<String, String> uriProperties) {
+    public String generateRdsIamAuthToken(String host, int port, Map<String, String> properties) {
 
-        String usernameProperty = getProperty(userProperty, connectionProperties, uriProperties);
-        String regionProperty =
-                getProperty(AWS_REGION_PROPERTY, connectionProperties, uriProperties);
-        String awsProfile = getProperty(AWS_PROFILE_PROPERTY, connectionProperties, uriProperties);
+        String usernameProperty = properties.get(userProperty);
+        String regionProperty = properties.get(AWS_REGION_PROPERTY);
+        String awsProfile = properties.get(AWS_PROFILE_PROPERTY);
 
         String region = resolveRegion(regionProperty, awsProfile);
 
         final RdsIamAuthTokenGenerator generator =
                 RdsIamAuthTokenGenerator.builder()
-                        .credentials(resolveCredentialProvider(connectionProperties, uriProperties))
+                        .credentials(resolveCredentialProvider(properties))
                         .region(region)
                         .build();
 
@@ -371,13 +385,10 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         return defaultAwsRegionProviderChain.getRegion();
     }
 
-    private AWSCredentialsProvider resolveCredentialProvider(
-            Properties connectionProperties, Map<String, String> uriProperties) {
-        String awsProfile = getProperty(AWS_PROFILE_PROPERTY, connectionProperties, uriProperties);
-        String awsAccessKey =
-                getProperty(AWS_ACCESS_KEY_ID_PROPERTY, connectionProperties, uriProperties);
-        String awsSecretKey =
-                getProperty(AWS_SECRET_ACCESS_KEY_PROPERTY, connectionProperties, uriProperties);
+    private AWSCredentialsProvider resolveCredentialProvider(Map<String, String> properties) {
+        String awsProfile = properties.get(AWS_PROFILE_PROPERTY);
+        String awsAccessKey = properties.get(AWS_ACCESS_KEY_ID_PROPERTY);
+        String awsSecretKey = properties.get(AWS_SECRET_ACCESS_KEY_PROPERTY);
 
         final AWSCredentialsProvider baseCredentialProvider;
         if (awsAccessKey != null && awsSecretKey != null) {
@@ -390,19 +401,9 @@ public class IamAuthJdbcDriverWrapper implements Driver {
             baseCredentialProvider = defaultAWSCredentialsProviderChain;
         }
 
-        String assumedRole =
-                getProperty(
-                        AWS_STS_CREDENTIAL_ROLE_ARN_PROPERTY, connectionProperties, uriProperties);
-        String externalId =
-                getProperty(
-                        AWS_STS_CREDENTIAL_EXTERNAL_ID_PROPERTY,
-                        connectionProperties,
-                        uriProperties);
-        String roleSessionNameProperty =
-                getProperty(
-                        AWS_STS_CREDENTIAL_SESSION_NAME_PROPERTY,
-                        connectionProperties,
-                        uriProperties);
+        String assumedRole = properties.get(AWS_STS_CREDENTIAL_ROLE_ARN_PROPERTY);
+        String externalId = properties.get(AWS_STS_CREDENTIAL_EXTERNAL_ID_PROPERTY);
+        String roleSessionNameProperty = properties.get(AWS_STS_CREDENTIAL_SESSION_NAME_PROPERTY);
 
         if (assumedRole != null) {
             String roleSessionName =
@@ -429,27 +430,52 @@ public class IamAuthJdbcDriverWrapper implements Driver {
 
     @Override
     public int getMajorVersion() {
+        if (delegate == null) {
+            logDelegateNotInitialised("getMajorValue");
+            return -1;
+        }
         return delegate.getMajorVersion();
     }
 
     @Override
     public int getMinorVersion() {
+        if (delegate == null) {
+            logDelegateNotInitialised("getMinorVersion");
+            return -1;
+        }
         return delegate.getMinorVersion();
     }
 
     @Override
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        if (delegate == null) {
+            logDelegateNotInitialised("getParentLogger");
+            throw new SQLFeatureNotSupportedException("Delegate driver not initialised");
+        }
         return delegate.getParentLogger();
     }
 
     @Override
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties properties)
             throws SQLException {
+        assertUrlNotNull(url);
+        attemptResolveDelegateDriverDetails(parseJdbcUrl(url));
         return delegate.getPropertyInfo(url, properties);
     }
 
     @Override
     public boolean jdbcCompliant() {
+        if (delegate == null) {
+            logDelegateNotInitialised("jdbcCompliant");
+            return false;
+        }
         return delegate.jdbcCompliant();
+    }
+
+    private void logDelegateNotInitialised(String method) {
+        LOGGER.warning(
+                "Method "
+                        + method
+                        + " called, but delegate driver not initialised, returning bogus value");
     }
 }
