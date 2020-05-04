@@ -194,6 +194,9 @@ public class IamAuthJdbcDriverWrapper implements Driver {
         String[] pairs = query.split("&");
         for (String pair : pairs) {
             int idx = pair.indexOf("=");
+            if (idx < 0) {
+                continue;
+            }
             try {
                 queryParams.put(
                         URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8.name()),
