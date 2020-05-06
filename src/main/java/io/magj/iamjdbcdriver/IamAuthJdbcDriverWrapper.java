@@ -197,21 +197,27 @@ public class IamAuthJdbcDriverWrapper implements Driver {
             if (idx < 0) {
                 continue;
             }
-            try {
-                // AWS secret key can contain + sign and URLDecoder will replace + or %20 with space
-                // which will render the access key unusable (if it wasn't encoded before)
-                // RFC2396 allows + sign in schema URI so as a workaround we will replace + with its
-                // encoded counterpart
-                queryParams.put(
-                        URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8.name()),
-                        URLDecoder.decode(
-                                pair.substring(idx + 1).replace("+", "%2B"),
-                                StandardCharsets.UTF_8.name()));
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
-            }
+            queryParams.put(urlDecode(pair.substring(0, idx)), urlDecode(pair.substring(idx + 1)));
         }
         return queryParams;
+    }
+
+    /**
+     * {@link URLDecoder} is designed for decoding {@code application/x-www-form-urlencoded} URL's,
+     * specifically it decodes {@code +} as space.
+     *
+     * <p>Form url encoding is an extension to standard RFC3986, which is not applicable for this
+     * use case.
+     *
+     * <p>Encoding of {@code +} to space is undesirable, as AWS secret access keys may contain
+     * {@code +}, and would require encoding to be correctly parsed.
+     */
+    private static String urlDecode(String value) {
+        try {
+            return URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8.name());
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @SuppressWarnings("unchecked")
