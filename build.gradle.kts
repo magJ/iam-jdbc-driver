@@ -14,6 +14,7 @@ repositories {
 
 dependencies {
     implementation("com.amazonaws:aws-java-sdk-rds:1.11.745")
+    implementation("com.amazonaws:aws-java-sdk-sts:1.11.745")
     testImplementation("junit:junit:3.8.1")
     testImplementation("org.postgresql:postgresql:42.2.12")
 }
@@ -21,7 +22,7 @@ dependencies {
 group = "io.magj"
 
 val release: String? by project
-val baseVersion = "0.1.7"
+val baseVersion = "0.1.8"
 
 version = if (release != null && release!!.toBoolean()) {
     baseVersion
