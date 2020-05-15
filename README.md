@@ -100,5 +100,5 @@ The following is the list of wrapper specific properties:
 |`awsStsCredentialProviderRoleArn`|An optional role ARN to assume before requesting RDS iam credentials|`arn:aws:iam::123456789012:role/DatabaseAccess`|
 |`awsStsCredentialProviderSessionName`| An optional session name to use if assuming a role. A random session name will be generated if not specified.<br>This option has no effect if `awsStsCredentialProviderRoleArn` is not configured|`myapplication-123`|
 |`awsStsCredentialProviderExternalId`| An optional external ID to pass in the assume role call.<br>This option has no effect if `awsStsCredentialProviderRoleArn` is not configured|`12345678-1234-1234-1234`|
-|`awsAccessKeyId`|An optional AWS access key to use as credentials when requesting an RDS token.<br>This option must be configured in conjunction with `awsSecretAccessKey` or will be ignored|`AKIAIOSFODNN7EXAMPLE`|
+|`awsAccessKeyId`|An optional AWS access key to use as credentials when requesting an RDS token.<br>This option must be configured in conjunction with `awsAccessKeyId` or will be ignored|`AKIAIOSFODNN7EXAMPLE`|
 |`awsSecretAccessKey`|An optional AWS secret key to use as credentials when requesting an RDS token.<br>This option must be configured in conjunction with `awsSecretAccessKey` or will be ignored|`wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY`|
